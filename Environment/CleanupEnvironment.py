@@ -643,7 +643,7 @@ class MultiAgentCleanupEnvironment:
 			self.trash_positions_yx = np.delete(self.trash_positions_yx, indexes_to_remove, axis = 0)
 		self.previous_trashes_removed_per_agent = self.trashes_removed_per_agent.copy()
 		self.history_trashes_removed_per_agent = {idx: self.history_trashes_removed_per_agent[idx] + len(self.trashes_removed_per_agent[idx]) if idx in self.trashes_removed_per_agent else self.history_trashes_removed_per_agent[idx] for idx in self.history_trashes_removed_per_agent.keys()}
-		print(f"Trashes removed by each agent: {self.history_trashes_removed_per_agent}")
+		
 		# Movement of trash if dynamic #
 		if self.dynamic:
 			# Movement of trash: a random component and a wind component #
