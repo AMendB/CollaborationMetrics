@@ -1,0 +1,13 @@
+/runs
+*.pyc
+*.pth
+*.DS_Store
+__pycache__/
+*.py[cod]
+nohup.out
+DoneTrainings/
+Evaluation/Results/
+Environment/Deprecated
+testing/
+Training/T
+optuna_trials/
