@@ -1160,7 +1160,7 @@ class MultiAgentCleanupEnvironment:
 			trash_positions = np.argwhere(self.model_trash_map > 0)
 
 		if 'logdijkstra' in self.reward_function:
-			distances_to_trash = [np.log(d^3 + 1) if (d:= self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)]) > 0 else 0 for trash_pos in trash_positions] # Avoid log(0)
+			distances_to_trash = [np.log(d**3 + 1) if (d:= self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)]) > 0 else 0 for trash_pos in trash_positions] # Avoid log(0)
 			# distances_to_trash = [np.log(d + 1) if d > 0 else 0 for d in distances_to_trash] # Avoid log(0)
 		elif 'dijkstra' in self.reward_function:
 			distances_to_trash = [self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)] for trash_pos in trash_positions]
@@ -1319,7 +1319,7 @@ if __name__ == '__main__':
 							   vision_length_by_team = (vision_length_explorers, vision_length_cleaners),
 							   flag_to_check_collisions_within = True,
 							   max_collisions = 1000,
-							   reward_function = 'negativedijkstra',
+							   reward_function = 'negativelogdijkstra',
 							   reward_weights = (1, 20, 2, 10),
 							   dynamic = True,
 							   obstacles = True,
