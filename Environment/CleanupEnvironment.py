@@ -1209,22 +1209,22 @@ class MultiAgentCleanupEnvironment:
 		return {idx: veh.actual_agent_position for idx, veh in enumerate(self.fleet.vehicles) if self.active_agents[idx]}
 
 	def get_model_mse(self):
-			""" Returns the trash MSE. The model and the real trash map are compared as density of trash, filtered with a gaussian filter. """
+		""" Returns the trash MSE. The model and the real trash map are compared as density of trash, filtered with a gaussian filter. """
 
-			sigma = 1 # standard deviation for gaussian kernel
-			real_trash_density = gaussian_filter(self.real_trash_map, sigma=sigma)
-			model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
+		sigma = 1 # standard deviation for gaussian kernel
+		real_trash_density = gaussian_filter(self.real_trash_map, sigma=sigma)
+		model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
 
-			return mean_squared_error(real_trash_density, model_trash_density)
+		return mean_squared_error(real_trash_density, model_trash_density)
 
 	def get_model_rmse(self):
-			""" Returns the trash RMSE. The model and the real trash map are compared as density of trash, filtered with a gaussian filter. """
+		""" Returns the trash RMSE. The model and the real trash map are compared as density of trash, filtered with a gaussian filter. """
 
-			sigma = 1 # standard deviation for gaussian kernel
-			real_trash_density = gaussian_filter(self.real_trash_map, sigma=sigma)
-			model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
+		sigma = 1 # standard deviation for gaussian kernel
+		real_trash_density = gaussian_filter(self.real_trash_map, sigma=sigma)
+		model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
 
-			return root_mean_squared_error(real_trash_density, model_trash_density)
+		return root_mean_squared_error(real_trash_density, model_trash_density)
 	
 	def get_changes_in_model(self):
 		""" Returns the changes in the model """
@@ -1232,9 +1232,9 @@ class MultiAgentCleanupEnvironment:
 		return np.sum(np.abs(self.model_trash_map - self.previous_model_trash_map))
 
 	def get_redundancy_max(self):
-			""" Returns the max number of agents that are in overlapping areas. """
-			
-			return np.max(self.redundancy_mask)
+		""" Returns the max number of agents that are in overlapping areas. """
+		
+		return np.max(self.redundancy_mask)
 	
 	def save_environment_configuration(self, path):
 		""" Save the environment configuration in the current directory as a json file"""
