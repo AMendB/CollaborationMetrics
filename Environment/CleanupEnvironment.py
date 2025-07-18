@@ -589,7 +589,8 @@ class MultiAgentCleanupEnvironment:
 		""" Initialize the trash map with a number of trash elements. """
 
 		# Reset the trash counter #
-		self.history_trashes_removed_per_agent = {idx: 0 for idx in self.get_active_cleaners_positions().keys()} 
+		self.history_trashes_removed_per_agent = {idx: 0 for idx in self.get_active_cleaners_positions().keys()}
+		self.trashes_removed_per_agent = {}
 
 		# Establish the wind direction during the episode #
 		self.wind_direction = np.array([self.rng_wind_direction.uniform(-0.10, 0.10), self.rng_wind_direction.uniform(-0.10, 0.10)])
@@ -600,7 +601,7 @@ class MultiAgentCleanupEnvironment:
 		# Save the vehicle that first sees each trash element with the step, and the one that collects it with the step #
 		self.trash_tracking = True
 		if self.trash_tracking:
-			self.trash_info = np.full(self.trash_positions_yx.shape[0], -1, dtype=[('step_discover', 'i4'), ('vehicle_discover', 'i4')])
+			self.trash_remaining_info = np.full(self.trash_positions_yx.shape[0], -1, dtype=[('step_discover', 'i4'), ('vehicle_discover', 'i4')])
 			self.trash_removed_info = np.zeros(0, dtype=[('step_discover', 'i4'), ('vehicle_discover', 'i4'),
 																	   ('step_remove', 'i4'), ('vehicle_remove', 'i4')])
 
@@ -637,11 +638,12 @@ class MultiAgentCleanupEnvironment:
 
 			if self.trash_tracking:
 				info_to_remove = np.zeros(len(indexes_to_remove), dtype=self.trash_removed_info.dtype)
-				info_to_remove['step_discover'] = self.trash_info['step_discover'][indexes_to_remove]
-				info_to_remove['vehicle_discover'] = self.trash_info['vehicle_discover'][indexes_to_remove]
+				info_to_remove['step_discover'] = self.trash_remaining_info['step_discover'][indexes_to_remove]
+				info_to_remove['vehicle_discover'] = self.trash_remaining_info['vehicle_discover'][indexes_to_remove]
 				info_to_remove['step_remove'] = self.steps
 				info_to_remove['vehicle_remove'] = np.concatenate([[idx]*len(self.trashes_removed_per_agent[idx]) for idx in self.trashes_removed_per_agent.keys()])
 				self.trash_removed_info = np.append(self.trash_removed_info, info_to_remove)
+				self.trash_remaining_info = np.delete(self.trash_remaining_info, indexes_to_remove)
 
 			self.trash_positions_yx = np.delete(self.trash_positions_yx, indexes_to_remove, axis = 0)
 		self.previous_trashes_removed_per_agent = self.trashes_removed_per_agent.copy()
@@ -699,8 +701,8 @@ class MultiAgentCleanupEnvironment:
 			pair_newtrash_vehicle = {trash_id: agent_id for agent_id, agent in enumerate(self.fleet.vehicles) if self.active_agents[agent_id] for trash_id, trash_pos in enumerate(rounded_trash_positions) if agent.influence_mask[tuple(trash_pos)]}
 
 			for trash_id, agent_id in pair_newtrash_vehicle.items():
-				self.trash_info['step_discover'][trash_id] = self.steps
-				self.trash_info['vehicle_discover'][trash_id] = agent_id
+				self.trash_remaining_info['step_discover'][trash_id] = self.steps
+				self.trash_remaining_info['vehicle_discover'][trash_id] = agent_id
 
 	def update_idleness_map(self, forget_factor = 0.9, minimum_idleness = 0):
 
