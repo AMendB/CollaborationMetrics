@@ -16,11 +16,11 @@ from sylegendarium.legendarium import Legendarium
 import numbers
 
 class AlgorithmRecorder:
-    def __init__(self, savepath, map_name, teams_name, team_id_of_each_agent, max_distance_by_team, max_steps_per_episode, objectives, n_agents, runs):
+    def __init__(self, savepath, map_name, teams_name, team_id_of_each_agent, max_distance_by_team, max_steps_per_episode, objectives, n_agents, runs, experiment_name='legendarium'):
         ''' Inicializa el almacenamiento de métricas con legendarium. '''
 
         # Inicializamos legendarium
-        self.data_saver = Legendarium(experiment_name='legendarium',
+        self.data_saver = Legendarium(experiment_name=experiment_name,
                                                     experiment_description=f'{map_name} experiment',
                                                     path=savepath)
 
@@ -50,7 +50,9 @@ class AlgorithmRecorder:
         self.data_saver.create_metric("traveled_distances", dict, "Distances travelled by the agents", "Distance units")
         self.data_saver.create_metric("trashes_at_sight", dict, "Trashes at sight for each agent", "Trashes")
         self.data_saver.create_metric("cleaned_trashes", dict, "Cleaned trashes by each agent", "Trashes")
-        self.data_saver.create_metric("trash_removed_info", np.ndarray, "Information about the removed trashes", "Trashes")
+        self.data_saver.create_metric("history_cleaned_trashes", dict, "History of cleaned trashes by each agent", "Trashes")
+        self.data_saver.create_metric("trash_remaining_info", np.ndarray, "Information about the remaining trash", "step_discover, vehicle_discover")
+        self.data_saver.create_metric("trash_removed_info", np.ndarray, "Information about the removed trashes", "step_discover, vehicle_discover, step_remove, vehicle_remove")
 
         # Create metrics related to the model
         self.data_saver.create_metric("objective", str, "Name of the objective", "-")
@@ -58,6 +60,7 @@ class AlgorithmRecorder:
         self.data_saver.create_metric("model", np.ndarray, "Model", "Objective units")
         self.data_saver.create_metric("trash_remaining", numbers.Real, "Number of trashes remaining in the map", "Trashes")
         self.data_saver.create_metric("percentage_of_trash_collected", numbers.Real, "Percentage of trash collected", "Percentage")
+        self.data_saver.create_metric("percentage_of_trash_discovered", numbers.Real, "Percentage of trash discovered", "Percentage")
         self.data_saver.create_metric("model_mse", numbers.Real, "MSE of the model", "Objective units")
         self.data_saver.create_metric("sum_model_changes", numbers.Real, "Sum of model changes", "Objective units")
         
@@ -76,12 +79,15 @@ class AlgorithmRecorder:
                         traveled_distances=env.get_traveled_distances(),
                         trashes_at_sight=env.get_trashes_at_sight(),
                         cleaned_trashes=env.trashes_removed_per_agent,
+                        history_cleaned_trashes=env.history_trashes_removed_per_agent,
+                        trash_remaining_info=env.trash_remaining_info,
                         trash_removed_info=env.trash_removed_info,
                         objective=objective,
                         ground_truth=env.real_trash_map,
                         model=env.model_trash_map,
                         trash_remaining=len(env.trash_positions_yx),
                         percentage_of_trash_collected=env.get_percentage_cleaned_trash(),
+                        percentage_of_trash_discovered=env.get_percentage_discovered_trash(),
                         model_mse=env.get_model_mse(),
                         sum_model_changes=env.get_changes_in_model(),
                         )
@@ -196,16 +202,45 @@ if __name__ == '__main__':
 
     first_iteration = True
     for path_to_training_folder in algorithms:
+        print(f"Evaluating algorithm: {path_to_training_folder}")
         ## LITERATURE ALGORITHMS ##
         if path_to_training_folder in ['WanderingAgent', 'LawnMower', 'PSO', 'Greedy']:
             selected_algorithm = path_to_training_folder
 
+            # If any of the algorithms contains 'Training', extract the scenario_map_name and reward weights from the environment_config.json #
+            if np.any([alg.find('Training') != -1 for alg in algorithms]):
+                # Get one that contains 'Training' #
+                path = [alg for alg in algorithms if alg.find('Training') != -1][0]
+                path = '/'.join(path.split('/')[:-1]) + '/'
+                f = open(path + 'environment_config.json',)
+                config = json.load(f)
+                f.close()
+                scenario_map_name = config['scenario_map_name']
+                reward_weights= tuple(config['reward_weights'])
+                if 'greedyastar' in path_to_training_folder.lower():
+                    reward_function = 'negativeastar'
+                elif 'greedy' in path_to_training_folder.lower():
+                    reward_function = 'negativedistance'
+                else:
+                    reward_function = config['reward_function']
+                n_explorers = env_config['number_of_agents_by_team'][0]
+                n_cleaners = env_config['number_of_agents_by_team'][1]
+                obstacles = env_config['obstacles']
+            else:
+                scenario_map_name = 'acoruna_port' # 'ypacarai_lake', 'acoruna_port', 'marinapalamos', 'comb_port'
+                reward_weights=(1, 50, 2, 0)
+                if 'greedyastar' in path_to_training_folder.lower():
+                    reward_function = 'negativeastar'
+                elif 'greedy' in path_to_training_folder.lower():
+                    reward_function = 'negativedistance' 
+                else:
+                    reward_function = 'negativedijkstra' # 'negativedistance', 'negativedijkstra', 'negativeastar'
+                n_explorers = 2
+                n_cleaners = 2
+                obstacles = False
             # Set config #
-            scenario_map_name = 'acoruna_port' # 'ypacarai_lake', 'acoruna_port', 'marinapalamos', 'comb_port'
             n_actions_explorers = 8
             n_actions_cleaners = 8
-            n_explorers = 2
-            n_cleaners = 2
             n_agents = n_explorers + n_cleaners
             movement_length_explorers = 2
             movement_length_cleaners = 1
@@ -215,9 +250,6 @@ if __name__ == '__main__':
             max_distance_travelled_explorers = 400
             max_distance_travelled_cleaners = 200
             max_steps_per_episode = 150
-
-            reward_function = 'negativedistance' # 'basic_reward', 'extended_reward', 'backtosimple'
-            reward_weights=(1, 50, 2, 0)
 
             # Set initial positions #
             random_initial_positions = True
@@ -247,6 +279,7 @@ if __name__ == '__main__':
                                     show_plot_graphics = SHOW_RENDER,
                                     )
             scenario_map = env.scenario_map
+            scenario_map_name = env.scenario_map_name
             
             if selected_algorithm == "LawnMower":
                 lawn_mower_rng = np.random.default_rng(seed=100)
@@ -286,6 +319,7 @@ if __name__ == '__main__':
                                     show_plot_graphics = SHOW_RENDER,
                                     )
             scenario_map = env.scenario_map
+            scenario_map_name = env.scenario_map_name
             n_agents = env.n_agents
             reward_function = env.reward_function
             reward_weights = env.reward_weights
@@ -311,7 +345,7 @@ if __name__ == '__main__':
                                     batch_size=exp_config['batch_size'],
                                     target_update=1000,
                                     seed = SEED,
-                                    concensus_actions=exp_config['concensus_actions'],
+                                    consensus_actions=exp_config['consensus_actions'],
                                     device='cuda:0',
                                     independent_networks_per_team = independent_networks_per_team,
                                     )
@@ -324,7 +358,8 @@ if __name__ == '__main__':
             if not(os.path.exists(savepath)): # create the directory if not exists
                 os.mkdir(savepath)
 
-            data_saver = AlgorithmRecorder(savepath=savepath,
+            data_saver = AlgorithmRecorder(experiment_name=experiment_name,
+                                           savepath=savepath,
                                             map_name=scenario_map_name,
                                             teams_name={0: 'Explorers', 1: 'Cleaners'},
                                             team_id_of_each_agent={idx: team_id for idx, team_id in enumerate(env.team_id_of_each_agent)},
@@ -348,6 +383,18 @@ if __name__ == '__main__':
 
             runtime = 0
             step = 0
+
+            # Save data #
+            if SAVE_DATA:
+                data_saver.save_registers(env=env,
+                                        run=run, 
+                                        step=step, 
+                                        algorithm=selected_algorithm, 
+                                        rewards={i: 0 for i in range(n_agents)}, 
+                                        actions={i: None for i in range(n_agents)}, 
+                                        objective="Trash",
+                                        dones=done)
+
             # Reset algorithms #
             if 'DRL' in selected_algorithm:
                 network.nogobackfleet_masking_module.reset()
@@ -367,7 +414,7 @@ if __name__ == '__main__':
                 # Take new actions #
                 t0 = time.perf_counter()
                 if 'DRL' in selected_algorithm:
-                    actions = network.select_concensus_actions(states=states, positions=env.get_active_agents_positions_dict(), n_actions_of_each_agent=env.n_actions_of_each_agent, done = done, deterministic=True)
+                    actions = network.select_consensus_actions(states=states, positions=env.get_active_agents_positions_dict(), n_actions_of_each_agent=env.n_actions_of_each_agent, done = done, deterministic=True)
                 elif selected_algorithm in ['WanderingAgent', 'LawnMower']:
                     actions = {agent_id: selected_algorithm_agents[agent_id].move(actual_position=position, trash_in_pixel=env.model_trash_map[position[0], position[1]]) for agent_id, position in env.get_active_agents_positions_dict().items()}
                 elif selected_algorithm == 'PSO':
