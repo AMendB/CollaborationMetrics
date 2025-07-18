@@ -409,6 +409,7 @@ class MultiAgentCleanupEnvironment:
 
 		# Init the redundancy mask #
 		self.redundancy_mask = np.sum([agent.influence_mask for idx, agent in enumerate(self.fleet.vehicles) if self.active_agents[idx]], axis = 0)
+		self.visited_areas_map[(self.redundancy_mask.astype(bool) * (1-self.non_water_mask)).astype(bool)] = 0.5 # 0 non visitable, 1 not visited yet, 0.5 visited
 
 		# Idleness map (1-> max idleness, 0-> just visited) #
 		self.idleness_map = (1 - self.redundancy_mask.astype(bool))*self.scenario_map
@@ -509,8 +510,9 @@ class MultiAgentCleanupEnvironment:
 
 		# Randomly generate obstacles if activated #
 		self.generate_obstacles()
-		self.visited_areas_map = self.scenario_map.copy()
 		self.non_water_mask = self.scenario_map != 1 # - self.inside_obstacles_map # mask with True where no water
+		self.visited_areas_map = self.scenario_map.copy()
+
 
 		# Reset the information of the fleet #
 		self.steps = 0
@@ -524,6 +526,7 @@ class MultiAgentCleanupEnvironment:
 
 		# Compute the redundancy mask after reset #
 		self.redundancy_mask = np.sum([agent.influence_mask for idx, agent in enumerate(self.fleet.vehicles) if self.active_agents[idx]], axis = 0)
+		self.visited_areas_map[(self.redundancy_mask.astype(bool) * (1-self.non_water_mask)).astype(bool)] = 0.5 # 0 non visitable, 1 not visited yet, 0.5 visited
 
 		# Idleness map (1-> max idleness, 0-> just visited) #
 		self.idleness_map = (1 - self.redundancy_mask.astype(bool))*self.scenario_map
@@ -699,7 +702,7 @@ class MultiAgentCleanupEnvironment:
 				self.trash_info['step_discover'][trash_id] = self.steps
 				self.trash_info['vehicle_discover'][trash_id] = agent_id
 
-	def update_idleness_map(self, forget_factor = 0.9, minimum_idleness = 0.1):
+	def update_idleness_map(self, forget_factor = 0.9, minimum_idleness = 0):
 
 		self.idleness_map = self.idleness_map + 1.0 / (forget_factor * self.max_steps_per_episode)
 		self.idleness_map = self.idleness_map - self.redundancy_mask.astype(bool)
@@ -782,16 +785,18 @@ class MultiAgentCleanupEnvironment:
 		# Update the redundancy mask after movements #
 		self.redundancy_mask = np.sum([agent.influence_mask for idx, agent in enumerate(self.fleet.vehicles) if self.active_agents[idx]], axis = 0)
 
-		# Update idleness map #
-		self.update_idleness_map()
 
 		# Update visited map and new discovered areas divided by overlapping agents #
 		self.new_discovered_area_per_agent = {idx: ((self.visited_areas_map[agent.influence_mask.astype(bool)] == 1).astype(int) / self.redundancy_mask[agent.influence_mask.astype(bool)] ).sum() 
 										if self.active_agents[idx] and agent.team_id == self.explorers_team_id else 0 for idx, agent in enumerate(self.fleet.vehicles)}
 		self.visited_areas_map[(self.redundancy_mask.astype(bool) * (1-self.non_water_mask)).astype(bool)] = 0.5 # 0 non visitable, 1 not visited yet, 0.5 visited
 		self.percentage_visited = (self.visited_areas_map == 0.5).sum() / (self.visited_areas_map != 0).sum()
+		
+		# Update idleness map #
 		self.idleness_discounted_per_agent = {idx: (self.idleness_map[agent.influence_mask.astype(bool)] / self.redundancy_mask[agent.influence_mask.astype(bool)] ).sum() 
 										 if self.active_agents[idx] and agent.team_id == self.explorers_team_id else 0 for idx, agent in enumerate(self.fleet.vehicles)}
+		self.update_idleness_map()
+		
 		# ponderation_r = np.array(
 		# 		[np.sum(
 		# 			ponderation_map[agent.influence_mask.astype(bool)] / self.redundancy_mask[agent.influence_mask.astype(bool)]
@@ -879,20 +884,23 @@ class MultiAgentCleanupEnvironment:
 				"""Each key from states dictionary is an agent, all states associated to that agent are concatenated in its value:"""
 				if self.n_agents == 1 and not self.dynamic: # 3 channels
 					states[agent_id] = np.concatenate(( 
-						self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						# self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						self.idleness_map[np.newaxis], # Channel 0 -> Map of idleness (1-> max idleness, 0-> just visited)
 						(self.model_trash_map/(np.max(self.model_trash_map)+1E-5))[np.newaxis], # Channel 1 -> Trash model map (normalized)
 						observing_agent_position_with_trail[np.newaxis], # Channel 3 -> Observing agent position map with a trail
 					), dtype=np.float16)
 				elif self.n_agents > 1 and not self.dynamic: # 4 channels
 					states[agent_id] = np.concatenate(( 
-						self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						# self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						self.idleness_map[np.newaxis], # Channel 0 -> Map of idleness (1-> max idleness, 0-> just visited)
 						(self.model_trash_map/(np.max(self.model_trash_map)+1E-5))[np.newaxis], # Channel 1 -> Trash model map (normalized)
 						observing_agent_position_with_trail[np.newaxis], # Channel 2 -> Observing agent position map with a trail
 						agent_observation_of_fleet[np.newaxis], # Channel 3 -> Others active agents position map
 					), dtype=np.float16)
 				elif self.n_agents == 1 and self.dynamic: # 5 channels
 					states[agent_id] = np.concatenate(( 
-						self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						# self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited.
+						self.idleness_map[np.newaxis], # Channel 0 -> Map of idleness (1-> max idleness, 0-> just visited)
 						(self.model_trash_map/(np.max(self.model_trash_map)+1E-5))[np.newaxis], # Channel 1 -> Trash model map (normalized)
 						(self.previous_model_trash_map/np.max(self.previous_model_trash_map+1E-5))[np.newaxis], # Channel 2 -> Previous trash model map (normalized)
 						(self.previousprevious_model_trash_map/np.max(self.previousprevious_model_trash_map+1E-5))[np.newaxis], # Channel 3 -> Previous previous trash model map (normalized)
@@ -901,7 +909,8 @@ class MultiAgentCleanupEnvironment:
 				elif self.n_agents > 1 and self.dynamic: # 6 channels
 					states[agent_id] = np.concatenate(( 
 						# obstacle_map[np.newaxis], # Channel 0 -> Known boundaries/navigation map
-						self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited. (no1channel)
+						# self.visited_areas_map[np.newaxis], # Channel 0 -> Map with visited positions. 0 non visitable, 1 non visited, 0.5 visited. (no1channel)
+						self.idleness_map[np.newaxis], # Channel 0 -> Map of idleness (1-> max idleness, 0-> just visited)
 						(self.model_trash_map/(np.max(self.model_trash_map)+1E-5))[np.newaxis], # Channel 1 -> Trash model map (normalized)
 						(self.previous_model_trash_map/np.max(self.previous_model_trash_map+1E-5))[np.newaxis], # Channel 2 -> Previous trash model map (normalized) (nohistory)
 						(self.previousprevious_model_trash_map/np.max(self.previousprevious_model_trash_map+1E-5))[np.newaxis], # Channel 3 -> Previous previous trash model map (normalized) (nohistory)
@@ -916,8 +925,8 @@ class MultiAgentCleanupEnvironment:
 					gaussian_blurred_model_trash = (1-self.non_water_mask) * gaussian_blurred_model_trash/(np.max(gaussian_blurred_model_trash)+1E-5)
 					if self.colored_agents == True:
 						self.state_to_render_first_active_agent = np.concatenate((
-							self.idleness_map[np.newaxis], # AXIS 0
 							# self.visited_areas_map[np.newaxis], # AXIS 0
+							self.idleness_map[np.newaxis], # AXIS 0
 							self.real_trash_map[np.newaxis], # AXIS 1
 							self.model_trash_map[np.newaxis], # AXIS 2
 							fleet_position_map_colored[np.newaxis], # AXIS 3
@@ -927,7 +936,8 @@ class MultiAgentCleanupEnvironment:
 					
 					else:
 						self.state_to_render_first_active_agent = np.concatenate(( 
-							self.visited_areas_map[np.newaxis], # AXIS 0
+							# self.visited_areas_map[np.newaxis], # AXIS 0
+							self.idleness_map[np.newaxis], # AXIS 0
 							self.real_trash_map[np.newaxis], # AXIS 1
 							self.model_trash_map[np.newaxis], # AXIS 2
 							observing_agent_position_with_trail[np.newaxis], # AXIS 3
@@ -1058,7 +1068,13 @@ class MultiAgentCleanupEnvironment:
 			# CLEANERS TEAM #
 			cleaners_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.cleaners_team_id and self.active_agents[idx]]
 			r_for_cleaned_trash = np.array([len(self.trashes_removed_per_agent[idx]) if idx in cleaners_alive and idx in self.trashes_removed_per_agent else 0 for idx in range(self.n_agents)])
+
+			if 'time' in self.reward_function:
+				r_time_penalization = np.array([-1 if idx in cleaners_alive else 0 for idx in range(self.n_agents)])
+			else:
+				r_time_penalization = np.zeros(self.n_agents)
 			
+			# BOTH TEAMS #
 			# If there is known trash, reward trough negative distance to closer trash #
 			if np.any(self.model_trash_map):
 				# Negative distance to closest trash in each step. Continuous penalization, lower when closer to trash #
@@ -1068,11 +1084,6 @@ class MultiAgentCleanupEnvironment:
 					r_negative_distance_to_trash = np.array([0 if idx in self.trashes_removed_per_agent else r_negative_distance_to_trash[idx] for idx, agent in enumerate(self.fleet.vehicles)])
 			else:
 				r_negative_distance_to_trash = np.zeros(self.n_agents)
-
-			if 'time' in self.reward_function:
-				r_time_penalization = np.array([-1 if idx in cleaners_alive else 0 for idx in range(self.n_agents)])
-			else:
-				r_time_penalization = np.zeros(self.n_agents)
 
 
 			rewards = np.zeros(self.n_agents) \
