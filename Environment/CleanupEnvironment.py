@@ -1145,6 +1145,15 @@ class MultiAgentCleanupEnvironment:
 
 		return 1 - len(self.trash_positions_yx) / self.initial_number_of_trash_elements
 	
+	def get_percentage_discovered_trash(self):
+		""" Returns the percentage of discovered trash. """
+		
+		trash_remaining_discovered = np.sum(self.trash_remaining_info['step_discover']!=-1)
+		trash_removed = len(self.trash_removed_info)
+		total_discovered_trash = trash_remaining_discovered + trash_removed
+
+		return total_discovered_trash / self.initial_number_of_trash_elements
+
 	def get_closest_known_trash_to_position(self, position):
 		""" Returns the position of the closer known trash to the given position. """
 
