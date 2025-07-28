@@ -698,7 +698,7 @@ class MultiAgentCleanupEnvironment:
 		if self.trash_tracking:
 			# Update the trash info with the new discovered trash #
 			rounded_trash_positions = self.trash_positions_yx.round().astype(int)
-			pair_newtrash_vehicle = {trash_id: agent_id for agent_id, agent in enumerate(self.fleet.vehicles) if self.active_agents[agent_id] for trash_id, trash_pos in enumerate(rounded_trash_positions) if agent.influence_mask[tuple(trash_pos)]}
+			pair_newtrash_vehicle = {trash_id: agent_id for agent_id, agent in enumerate(self.fleet.vehicles) if self.active_agents[agent_id] for trash_id, trash_pos in enumerate(rounded_trash_positions) if agent.influence_mask[tuple(trash_pos)] and self.trash_remaining_info['step_discover'][trash_id] == -1} 
 
 			for trash_id, agent_id in pair_newtrash_vehicle.items():
 				self.trash_remaining_info['step_discover'][trash_id] = self.steps
