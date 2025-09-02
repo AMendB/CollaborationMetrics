@@ -3,7 +3,7 @@ import torch
 
 class ParticleSwarmOptimizationFleet:
 
-    def __init__(self, env):
+    def __init__(self, env, use_idleness = True):
 
         # Get environment info #
         self.env = env
@@ -33,12 +33,16 @@ class ParticleSwarmOptimizationFleet:
         self.best_location_per_agent = [None]*self.n_agents
         self.velocities = [[0, 0]]*self.n_agents
 
+        # Fixed parameters #
+        self.use_idleness = use_idleness
+
     def get_agents_q_values(self):
         """ Update information and move the agent """
 
         self.active_agents_positions = self.env.get_active_agents_positions_dict()
         self.model_trash_map = self.env.model_trash_map.copy()
         self.visited_areas_map = self.env.visited_areas_map.copy()
+        self.idleness_map = self.env.idleness_map.copy()
         self.trash_locations = np.vstack(np.where(self.model_trash_map > 0)).T
 
         # Cleaners go for the trash since discovered, explorers explore the first half of the episode and then exploit #
@@ -60,7 +64,11 @@ class ParticleSwarmOptimizationFleet:
     def update_vectors(self):
         """ Update the vectors direction of each agent """
         
-        non_visited_locations = np.vstack(np.where(self.visited_areas_map == 1)).T # 1 is the value of non visited cells
+        if self.use_idleness:
+            # Max idleness locations #
+            non_visited_locations = np.vstack(np.where(self.idleness_map == np.max(self.idleness_map))).T
+        else:
+            non_visited_locations = np.vstack(np.where(self.visited_areas_map == 1)).T # 1 is the value of non visited cells
         trash_at_sight_per_agent = [np.sum(self.env.real_trash_map[self.env.fleet.vehicles[agent_id].influence_mask.astype(bool)]) for agent_id in range(self.n_agents)]
 
         q_values = {}

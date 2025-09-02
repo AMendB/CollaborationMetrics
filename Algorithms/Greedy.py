@@ -3,7 +3,7 @@ import numpy as np
 class OneStepGreedyFleet:
     """ Class to implement a 1-step greedy agent for the CleanupEnvironment. """
 
-    def __init__(self, env) -> None:
+    def __init__(self, env, use_idleness = True) -> None:
 
         # Get environment info #
         self.env = env
@@ -17,6 +17,9 @@ class OneStepGreedyFleet:
         self.n_actions_of_each_agent = self.env.n_actions_of_each_agent
         self.fleet = self.env.fleet
         self.reward_weights = self.env.reward_weights
+
+        # Fixed parameters #
+        self.use_idleness = use_idleness
 
     def is_reachable(self, navigation_map, current_position, next_position):
         """ Check if the there is a path between the current position and the next position. """
@@ -85,7 +88,12 @@ class OneStepGreedyFleet:
 
             # EXPLORERS TEAM #
             if agent.team_id == self.explorers_team_id:
-                r_for_discover_new_area = (self.visited_areas_map[future_influence_mask.astype(bool)] == 1).sum()
+                if not self.use_idleness:
+                    r_for_discover_new_area = (self.visited_areas_map[future_influence_mask.astype(bool)] == 1).sum()
+                else:
+                    idleness_discounted = (self.idleness_map[future_influence_mask.astype(bool)]).sum()
+                    r_for_discover_new_area = idleness_discounted
+
             else:  
                 r_for_discover_new_area = 0
             
@@ -102,9 +110,10 @@ class OneStepGreedyFleet:
             #     ponderation_for_discover_new_area = self.reward_weights[2]
             ponderation_for_discover_new_area = self.reward_weights[2]
 
-            reward = r_for_taking_action_that_approaches_to_trash \
-                        + r_for_discover_new_area * ponderation_for_discover_new_area \
-                        + r_for_cleaned_trash * self.reward_weights[self.cleaners_team_id] \
+            reward = 0 \
+                    + r_for_cleaned_trash * self.reward_weights[self.cleaners_team_id] \
+                    + r_for_discover_new_area * ponderation_for_discover_new_area \
+                    + r_for_taking_action_that_approaches_to_trash * self.reward_weights[3] \
             
             dict_actions_rewards[action] = reward
 
@@ -130,6 +139,7 @@ class OneStepGreedyFleet:
         
         self.navigable_map = self.env.scenario_map.copy() # 1 where navigable, 0 where not navigable
         self.visited_areas_map = self.env.visited_areas_map.copy()
+        self.idleness_map = self.env.idleness_map.copy()
         self.model_trash_map = self.env.model_trash_map
         self.percentage_visited = self.env.percentage_visited
         active_agents_positions = self.env.get_active_agents_positions_dict()
@@ -168,7 +178,11 @@ class OneStepGreedyFleet:
 
                 # EXPLORERS TEAM #
                 if agent.team_id == self.explorers_team_id:
-                    r_for_discover_new_area = (self.visited_areas_map[future_influence_mask.astype(bool)] == 1).sum()
+                    if not self.use_idleness:
+                        r_for_discover_new_area = (self.visited_areas_map[future_influence_mask.astype(bool)] == 1).sum()
+                    else:
+                        idleness_discounted = (self.idleness_map[future_influence_mask.astype(bool)]).sum()
+                        r_for_discover_new_area = idleness_discounted
                 else:  
                     r_for_discover_new_area = 0
                 
@@ -185,9 +199,10 @@ class OneStepGreedyFleet:
                 #     ponderation_for_discover_new_area = self.reward_weights[2]
                 ponderation_for_discover_new_area = self.reward_weights[2]
 
-                reward = r_for_taking_action_that_approaches_to_trash \
-                            + r_for_discover_new_area * ponderation_for_discover_new_area \
-                            + r_for_cleaned_trash * self.reward_weights[self.cleaners_team_id] \
+                reward = 0 \
+                        + r_for_cleaned_trash * self.reward_weights[self.cleaners_team_id] \
+                        + r_for_discover_new_area * ponderation_for_discover_new_area \
+                        + r_for_taking_action_that_approaches_to_trash * self.reward_weights[3] \
                             
                 rewards[action] = reward
                 
@@ -208,6 +223,7 @@ class OneStepGreedyFleet:
         
         self.navigable_map = self.env.scenario_map.copy() # 1 where navigable, 0 where not navigable
         self.visited_areas_map = self.env.visited_areas_map.copy()
+        self.idleness_map = self.env.idleness_map.copy()
         self.model_trash_map = self.env.model_trash_map 
         self.percentage_visited = self.env.percentage_visited
         active_agents_positions = self.env.get_active_agents_positions_dict()
