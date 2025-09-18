@@ -7,7 +7,7 @@ import colorcet
 
 import torch
 
-from sklearn.metrics import mean_squared_error, root_mean_squared_error
+from sklearn.metrics import mean_squared_error, root_mean_squared_error, r2_score
 import json
 
 from scipy.ndimage import gaussian_filter
@@ -768,7 +768,7 @@ class MultiAgentCleanupEnvironment:
 				
 		return distance_map, predecessor_map
 	
-	def step(self, actions: dict, dont_calculate_rewards = False):
+	def step(self, actions: dict, dont_calculate_rewards = False, return_reward_components = False):
 		"""Execute all updates for each step"""
 
 		# Update the steps #
@@ -810,7 +810,10 @@ class MultiAgentCleanupEnvironment:
 		self.update_model_trash_map()
 
 		# Compute reward #
-		rewards = self.get_reward(actions, dont_calculate_rewards)
+		if return_reward_components:
+			rewards, reward_components = self.get_reward(actions, dont_calculate_rewards, return_reward_components)
+		else:
+			rewards = self.get_reward(actions, dont_calculate_rewards)
 
 		# Update the states of the agents #
 		self.capture_states()
@@ -835,7 +838,10 @@ class MultiAgentCleanupEnvironment:
 		self.active_agents = {key: not value for key, value in self.done.items()}
 		self.n_active_agents = sum(self.active_agents.values())
 
-		return self.states, rewards, self.done
+		if return_reward_components:
+			return self.states, rewards, reward_components, self.done
+		else:
+			return self.states, rewards, self.done
 
 	def capture_states(self):
 		""" Update the states for every vehicle. Every channel will be an input of the Neural Network. """
@@ -1049,7 +1055,7 @@ class MultiAgentCleanupEnvironment:
 		
 		return real_trash_map
 
-	def get_reward(self, actions, dont_calculate_rewards = False):
+	def get_reward(self, actions, dont_calculate_rewards = False, return_reward_components = False):
 		""" Reward functions. Different reward functions depending on the team of the agent. """
 		if dont_calculate_rewards:
 			return {agent_id: 0 for agent_id in range(self.n_agents)}
@@ -1094,6 +1100,19 @@ class MultiAgentCleanupEnvironment:
 					  + r_for_discover_new_area * self.reward_weights[2] \
 					  + r_negative_distance_to_trash * self.reward_weights[3] \
 					  + r_time_penalization \
+					  
+			if return_reward_components:
+				reward_components = {agent_id: {
+					'r_for_discover_trash': r_for_discover_trash[agent_id],
+					'r_for_cleaned_trash': r_for_cleaned_trash[agent_id],
+					'r_for_discover_new_area': r_for_discover_new_area[agent_id],
+					'r_negative_distance_to_trash': r_negative_distance_to_trash[agent_id],
+					'r_time_penalization': r_time_penalization[agent_id],
+				} for agent_id in range(self.n_agents)}
+					  
+		elif 'potentialfields' in self.reward_function:
+			# TODO #
+			pass
 
 		elif self.reward_function == 'backtosimpledistanceppo':
 			# ALL TEAMS #
@@ -1122,7 +1141,10 @@ class MultiAgentCleanupEnvironment:
 			print(f"Reward function {self.reward_function} not implemented!!")
 			exit()
 
-		return {agent_id: rewards[agent_id] if self.active_agents[agent_id] else 0 for agent_id in range(self.n_agents)}
+		if return_reward_components:
+			return {agent_id: rewards[agent_id] if self.active_agents[agent_id] else 0 for agent_id in range(self.n_agents)}, reward_components
+		else:
+			return {agent_id: rewards[agent_id] if self.active_agents[agent_id] else 0 for agent_id in range(self.n_agents)}
 	
 	def reset_seeds(self):
 		""" Reset the seeds of the environment. """
@@ -1238,6 +1260,15 @@ class MultiAgentCleanupEnvironment:
 		model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
 
 		return root_mean_squared_error(real_trash_density, model_trash_density)
+
+	def get_model_r2(self):
+		""" Returns the trash R2. The model and the real trash map are compared as density of trash, filtered with a gaussian filter. """
+
+		sigma = 1 # standard deviation for gaussian kernel
+		real_trash_density = gaussian_filter(self.real_trash_map, sigma=sigma)
+		model_trash_density = gaussian_filter(self.model_trash_map, sigma=sigma)
+
+		return r2_score(real_trash_density.flatten(), model_trash_density.flatten())
 	
 	def get_changes_in_model(self):
 		""" Returns the changes in the model """
