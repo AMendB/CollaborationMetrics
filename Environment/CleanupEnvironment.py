@@ -1103,10 +1103,10 @@ class MultiAgentCleanupEnvironment:
 					  
 			if return_reward_components:
 				reward_components = {agent_id: {
-					'r_for_discover_trash': r_for_discover_trash[agent_id],
-					'r_for_cleaned_trash': r_for_cleaned_trash[agent_id],
-					'r_for_discover_new_area': r_for_discover_new_area[agent_id],
-					'r_negative_distance_to_trash': r_negative_distance_to_trash[agent_id],
+					'r_for_discover_trash': r_for_discover_trash[agent_id] * self.reward_weights[self.explorers_team_id],
+					'r_for_cleaned_trash': r_for_cleaned_trash[agent_id] * self.reward_weights[self.cleaners_team_id],
+					'r_for_discover_new_area': r_for_discover_new_area[agent_id] * self.reward_weights[2],
+					'r_negative_distance_to_trash': r_negative_distance_to_trash[agent_id] * self.reward_weights[3],
 					'r_time_penalization': r_time_penalization[agent_id],
 				} for agent_id in range(self.n_agents)}
 					  
