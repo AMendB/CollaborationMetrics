@@ -662,7 +662,7 @@ if __name__ == '__main__':
                 t1 = time.perf_counter()
                 runtimes_dict[selected_algorithm].append(t1-t0)
 
-                states, new_reward, done = env.step(actions, dont_calculate_rewards=True)
+                states, new_reward, done = env.step(actions, dont_calculate_rewards=False)
                 acc_rw_episode = [acc_rw_episode[i] + new_reward[i] for i in range(n_agents)]
 
                 # print(f"Step {env.steps}")
