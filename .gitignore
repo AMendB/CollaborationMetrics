@@ -11,3 +11,4 @@ Environment/Deprecated
 testing/
 Training/T
 optuna_trials/
+.vscode
