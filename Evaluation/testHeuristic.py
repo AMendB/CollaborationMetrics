@@ -25,6 +25,7 @@ RUNS = 100
 
 
 # Set config #
+use_idleness = False
 # scenario_map_name = 'acoruna_port'
 # scenario_map_name = 'marinapalamos'
 scenario_map_name = 'comb_port'
@@ -57,7 +58,7 @@ else:
 reward_function = 'negativedijkstra'
 # reward_function = 'negativeastar'
 # reward_function = 'negativedistance'
-# reward_weights=(1, 50, 2, 0)
+# reward_weights=(1, 50, 2, 1)
 reward_weights=(2.626225214357622, 14.33181947501113, 5.826858678174348, 1.7319722255470185)
 
 # Set initial positions #
@@ -96,10 +97,10 @@ for algorithm in algorithms:
         agents = [WanderingAgent(world=env.scenario_map, number_of_actions=8, movement_length=movement_length_of_each_agent[i], seed=SEED+i, agent_is_cleaner=env.team_id_of_each_agent[i]==env.cleaners_team_id) for i in range(n_agents)]
         consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
     elif algorithm == 'PSO':
-        agents = ParticleSwarmOptimizationFleet(env)
+        agents = ParticleSwarmOptimizationFleet(env, use_idleness=use_idleness)
         consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
     elif algorithm == 'Greedy':
-        agents = OneStepGreedyFleet(env)
+        agents = OneStepGreedyFleet(env, use_idleness=use_idleness)
         consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
 
     mean_cleaned_percentage = 0
