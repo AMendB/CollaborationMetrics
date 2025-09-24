@@ -1279,7 +1279,7 @@ class MultiAgentCleanupEnvironment:
 			if lineal_distance:
 				distances_to_trash = np.linalg.norm(known_trash_positions - position, axis = 1)
 			else:
-				distances_to_trash = [self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)] for trash_pos in known_trash_positions]
+				distances_to_trash = np.array([self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)] for trash_pos in known_trash_positions])
 
 			if mean:
 				attractive_potential = np.mean(1 / (distances_to_trash + 1E-5))
