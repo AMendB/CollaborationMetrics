@@ -337,7 +337,7 @@ class MultiAgentCleanupEnvironment:
 		self.colored_agents = True
 		
 		# Graph for Dijkstra #
-		if 'dijkstra' in self.reward_function:
+		if 'dijkstra' in self.reward_function or 'potentialfields' in self.reward_function:
 			self.graph = self.grid_to_graph()
 			self.dijkstra_distance_map, self.predecessor_map = self.calculate_distance_and_predecessor_maps()
 
