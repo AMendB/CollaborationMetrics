@@ -11,7 +11,7 @@ import json
 def objective(trial):
 	# Hiperparámetros optimizables
 	epsilon = trial.suggest_float("epsilon", 0.5, 1.0, step=0.05) # Epsilon upper bound for epsilon-greedy interval
-	gamma = trial.suggest_float("gamma", 0.80, 0.99, step=0.01) # Discount factor
+	gamma = trial.suggest_float("gamma", 0.95, 0.99, step=0.01) # Discount factor
 	lr = trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True)
 	target_update = trial.suggest_int("target_update", 1000, 10000, step=1000)
 	train_every = trial.suggest_int("train_every", 5, 50, step=5)

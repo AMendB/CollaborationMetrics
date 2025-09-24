@@ -796,7 +796,7 @@ class MultiAgentCleanupEnvironment:
 		
 		# Update idleness map #
 		self.idleness_discounted_per_agent = {idx: (self.idleness_map[agent.influence_mask.astype(bool)] / self.redundancy_mask[agent.influence_mask.astype(bool)] ).sum() 
-										 if self.active_agents[idx] and agent.team_id == self.explorers_team_id else 0 for idx, agent in enumerate(self.fleet.vehicles)}
+										 if self.active_agents[idx] else 0 for idx, agent in enumerate(self.fleet.vehicles)}
 		self.update_idleness_map()
 		
 		# ponderation_r = np.array(
@@ -1071,7 +1071,7 @@ class MultiAgentCleanupEnvironment:
 				])
 			
 			# r_for_discover_new_area = np.array([*self.new_discovered_area_per_agent.values()])
-			r_for_discover_new_area = np.array([*self.idleness_discounted_per_agent.values()])
+			r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if idx in explorers_alive else 0 for idx in range(self.n_agents)])
 			
 			# CLEANERS TEAM #
 			cleaners_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.cleaners_team_id and self.active_agents[idx]]
@@ -1111,9 +1111,42 @@ class MultiAgentCleanupEnvironment:
 				} for agent_id in range(self.n_agents)}
 					  
 		elif 'potentialfields' in self.reward_function:
-			# TODO #
-			pass
+			# EXPLORERS TEAM #
+			explorers_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.explorers_team_id and self.active_agents[idx]]
+			changes_in_whole_model = np.abs(self.model_trash_map - self.previous_model_trash_map)
+			r_for_discover_trash = np.array(
+				[np.sum(
+					changes_in_whole_model[agent.influence_mask.astype(bool)] / self.redundancy_mask[agent.influence_mask.astype(bool)]
+					) if idx in explorers_alive else 0 for idx, agent in enumerate(self.fleet.vehicles) # only explorers will get reward for finding trash
+				])
+			
 
+			# CLEANERS TEAM #
+			cleaners_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.cleaners_team_id and self.active_agents[idx]]
+			r_for_cleaned_trash = np.array([len(self.trashes_removed_per_agent[idx]) if idx in cleaners_alive and idx in self.trashes_removed_per_agent else 0 for idx in range(self.n_agents)])
+			
+			# BOTH TEAMS #
+			r_idleness = np.array([*self.idleness_discounted_per_agent.values()])
+			# If there is known trash, reward trough potential fields to trash #
+			if np.any(self.model_trash_map):
+				r_potential_fields = np.array([self.get_potential_field_reward(agent.actual_agent_position) if self.active_agents[idx] else 0 for idx, agent in enumerate(self.fleet.vehicles)])
+			else:
+				r_potential_fields = np.zeros(self.n_agents)
+
+			rewards = np.zeros(self.n_agents) \
+					  + r_for_discover_trash * self.reward_weights[self.explorers_team_id] \
+					  + r_for_cleaned_trash * self.reward_weights[self.cleaners_team_id] \
+					  + r_idleness * self.reward_weights[2] \
+					  + r_potential_fields * self.reward_weights[3] \
+					  
+			if return_reward_components:
+				reward_components = {agent_id: {
+					'r_for_discover_trash': r_for_discover_trash[agent_id] * self.reward_weights[self.explorers_team_id],
+					'r_for_cleaned_trash': r_for_cleaned_trash[agent_id] * self.reward_weights[self.cleaners_team_id],
+					'r_idleness': r_idleness[agent_id] * self.reward_weights[2],
+					'r_potential_fields': r_potential_fields[agent_id] * self.reward_weights[3],
+				} for agent_id in range(self.n_agents)}
+				
 		elif self.reward_function == 'backtosimpledistanceppo':
 			# ALL TEAMS #
 			# Penalization for collision #
@@ -1234,6 +1267,32 @@ class MultiAgentCleanupEnvironment:
 			all_present = False
 		
 		return all_present
+
+	def get_potential_field_reward(self, position, lineal_distance=False, mean=False):
+		""" Returns the potential field reward for a given position. """
+
+		attractive_potential = 0
+		repulsive_potential = 0
+		# Attractive potential from known trash
+		known_trash_positions = np.argwhere(self.model_trash_map > 0)
+		if len(known_trash_positions) > 0:
+			if lineal_distance:
+				distances_to_trash = np.linalg.norm(known_trash_positions - position, axis = 1)
+			else:
+				distances_to_trash = [self.dijkstra_distance_map[tuple(position)][tuple(trash_pos)] for trash_pos in known_trash_positions]
+
+			if mean:
+				attractive_potential = np.mean(1 / (distances_to_trash + 1E-5))
+			else:
+				attractive_potential = np.sum(1 / (distances_to_trash**2 + 1E-5))
+		# Repulsive potential from obstacles
+		# obstacle_positions = np.argwhere(self.scenario_map == 0)
+		# if len(obstacle_positions) > 0:
+		# 	distances_to_obstacles = np.linalg.norm(obstacle_positions - position, axis = 1)
+		# 	repulsive_potential = np.sum(1 / (distances_to_obstacles + 1E-5)) # avoid division by zero
+		# return attractive_potential - repulsive_potential
+
+		return attractive_potential
 
 	def get_active_cleaners_positions(self):
 		
