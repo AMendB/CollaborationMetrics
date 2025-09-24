@@ -22,9 +22,9 @@ def objective(trial):
 
 	# Ajustar los pesos de la función de recompensa
 	reward_weights = (
-		trial.suggest_float("reward_weight_1", 0.1, 10.0),
-		trial.suggest_float("reward_weight_2", 1.0, 100.0),
-		trial.suggest_float("reward_weight_3", 0.1, 10.0),
+		trial.suggest_float("reward_weight_1", 0.1, 5.0),
+		trial.suggest_float("reward_weight_2", 1.0, 50.0),
+		trial.suggest_float("reward_weight_3", 0.1, 5.0),
 		trial.suggest_float("reward_weight_4", 0.1, 5.0)
 	)
 
