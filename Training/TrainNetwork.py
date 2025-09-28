@@ -56,7 +56,7 @@ if args.path_optuna_params:
 	best_params = json.load(f)
 	f.close()
 	best_params = best_params['params']
-	reward_weights = tuple([best_params['reward_weight_1'], best_params['reward_weight_2'], best_params['reward_weight_3'], best_params['reward_weight_4']])
+	reward_weights = tuple([round(best_params['reward_weight_1'], 2), round(best_params['reward_weight_2'], 2), round(best_params['reward_weight_3'], 2), round(best_params['reward_weight_4'], 2)])
 	epsilon = best_params['epsilon']
 	gamma = best_params['gamma']
 	lr = best_params['learning_rate']
