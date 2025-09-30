@@ -1071,7 +1071,10 @@ class MultiAgentCleanupEnvironment:
 				])
 			
 			# r_for_discover_new_area = np.array([*self.new_discovered_area_per_agent.values()])
-			r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if idx in explorers_alive else 0 for idx in range(self.n_agents)])
+			if 'idle4all' in self.reward_function:
+				r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if self.active_agents[idx] else 0 for idx in range(self.n_agents)]) # LAST TEST. ALL AGENTS CAN GET REWARD FOR IDLENESS
+			else:
+				r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if idx in explorers_alive else 0 for idx in range(self.n_agents)]) # original
 			
 			# CLEANERS TEAM #
 			cleaners_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.cleaners_team_id and self.active_agents[idx]]
@@ -1086,7 +1089,10 @@ class MultiAgentCleanupEnvironment:
 			# If there is known trash, reward trough negative distance to closer trash #
 			if np.any(self.model_trash_map):
 				# Negative distance to closest trash in each step. Continuous penalization, lower when closer to trash #
-				r_negative_distance_to_trash = np.array([-self.get_distance_to_closest_known_trash(agent.actual_agent_position) if self.active_agents[idx] else 0 for idx, agent in enumerate(self.fleet.vehicles)])
+				if 'nopenalexpl' in self.reward_function:
+					r_negative_distance_to_trash = np.array([-self.get_distance_to_closest_known_trash(agent.actual_agent_position) if idx in cleaners_alive else 0 for idx, agent in enumerate(self.fleet.vehicles)]) # ONLY CLEANERS GET PENALIZATION FOR DISTANCE TO TRASH
+				else:
+					r_negative_distance_to_trash = np.array([-self.get_distance_to_closest_known_trash(agent.actual_agent_position) if self.active_agents[idx] else 0 for idx, agent in enumerate(self.fleet.vehicles)]) # original
 				# If the agent has removed trash, not penalize the distance with next closest trash #
 				if np.any(self.trashes_removed_per_agent):
 					r_negative_distance_to_trash = np.array([0 if idx in self.trashes_removed_per_agent else r_negative_distance_to_trash[idx] for idx, agent in enumerate(self.fleet.vehicles)])
