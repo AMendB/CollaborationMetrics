@@ -1264,18 +1264,22 @@ class MultiAgentCleanupEnvironment:
 	def get_distance_to_position(self, position1, position2, method='euclidean'):
 		""" Returns the distance between two positions. """
 
-		if len(position2) > 2:
+		position1 = np.array(position1)
+		position2 = np.array(position2)
+
+		# If position2 is an array of positions, return an array of distances
+		if position2.ndim == 2 and position2.shape[0] > 1:
 			distances = []
 			for pos2 in position2:
 				distances.append(self.get_distance_to_position(position1, pos2, method=method))
 			return np.array(distances)
 		
 		if method == 'euclidean':
-			return np.linalg.norm(np.array(position1) - np.array(position2))
+			return np.linalg.norm(position1 - position2)
 		elif method == 'dijkstra':
-			return self.dijkstra_distance_map[tuple(position1)][tuple(position2)]
+			return np.array(self.dijkstra_distance_map[tuple(position1.reshape(-1))][tuple(position2.reshape(-1))])
 		elif method == 'astar':
-			return a_star_find_path(self.scenario_map, tuple(position1), tuple(position2), return_distance=True)
+			return np.array(a_star_find_path(self.scenario_map, tuple(position1.reshape(-1)), tuple(position2.reshape(-1)), return_distance=True))
 		else:
 			print(f"Distance method {method} not implemented!!")
 			exit()
