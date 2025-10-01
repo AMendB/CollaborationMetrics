@@ -1228,12 +1228,18 @@ class MultiAgentCleanupEnvironment:
 
 		return total_discovered_trash / self.initial_number_of_trash_elements
 
-	def get_closest_known_trash_to_position(self, position):
+	def get_closest_known_trash_to_position(self, position, method='euclidean'):
 		""" Returns the position of the closer known trash to the given position. """
 
 		known_trash_positions = np.argwhere(self.model_trash_map > 0)
-		return known_trash_positions[np.argmin(np.linalg.norm(known_trash_positions - position, axis = 1))]
-	
+		if method == 'euclidean':
+			return known_trash_positions[np.argmin(np.linalg.norm(known_trash_positions - position, axis = 1))]
+		elif method == 'dijkstra':
+			return known_trash_positions[self.env.get_distance_to_position(np.array(position), known_trash_positions, method='dijkstra').argmin()]
+		else:
+			print(f"Distance method {method} not implemented!!")
+			exit()
+
 	def get_distance_to_closest_known_trash(self, position, previous_model=False):
 		""" Returns the distance from the closer known trash to the given position. """
 
@@ -1254,6 +1260,25 @@ class MultiAgentCleanupEnvironment:
 			distances_to_trash = np.linalg.norm(trash_positions - position, axis = 1)
 
 		return np.min(distances_to_trash)
+	
+	def get_distance_to_position(self, position1, position2, method='euclidean'):
+		""" Returns the distance between two positions. """
+
+		if len(position2) > 2:
+			distances = []
+			for pos2 in position2:
+				distances.append(self.get_distance_to_position(position1, pos2, method=method))
+			return np.array(distances)
+		
+		if method == 'euclidean':
+			return np.linalg.norm(np.array(position1) - np.array(position2))
+		elif method == 'dijkstra':
+			return self.dijkstra_distance_map[tuple(position1)][tuple(position2)]
+		elif method == 'astar':
+			return a_star_find_path(self.scenario_map, tuple(position1), tuple(position2), return_distance=True)
+		else:
+			print(f"Distance method {method} not implemented!!")
+			exit()
 	
 	def check_if_there_was_reachable_trash(self, previous_position):
 		""" Return if there was a reachable trash in the previous step, and it is still there. """

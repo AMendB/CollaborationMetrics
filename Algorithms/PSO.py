@@ -87,11 +87,17 @@ class ParticleSwarmOptimizationFleet:
                 max_trash_location = agent_position
             
             if len(non_visited_locations) > 0:
-                closer_unexplored_location = non_visited_locations[np.linalg.norm(np.array(agent_position) - non_visited_locations, axis=1).argmin()]
+                if 'dijkstra' in self.env.reward_function:
+                    closer_unexplored_location = non_visited_locations[self.env.get_distance_to_position(np.array(agent_position), non_visited_locations, method='dijkstra').argmin()]
+                else:
+                    closer_unexplored_location = non_visited_locations[np.linalg.norm(np.array(agent_position) - non_visited_locations, axis=1).argmin()]
             else:
                 closer_unexplored_location = agent_position
             if len(self.trash_locations) > 0:
-                closer_trash_location = self.trash_locations[np.linalg.norm(np.array(agent_position) - self.trash_locations, axis=1).argmin()]
+                if 'dijkstra' in self.env.reward_function:
+                    closer_trash_location = self.trash_locations[self.env.get_distance_to_position(np.array(agent_position), self.trash_locations, method='dijkstra').argmin()]
+                else:
+                    closer_trash_location = self.trash_locations[np.linalg.norm(np.array(agent_position) - self.trash_locations, axis=1).argmin()]
             else:
                 closer_trash_location = agent_position
 
