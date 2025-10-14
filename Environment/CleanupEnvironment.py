@@ -1073,6 +1073,9 @@ class MultiAgentCleanupEnvironment:
 			# r_for_discover_new_area = np.array([*self.new_discovered_area_per_agent.values()])
 			if 'idle4all' in self.reward_function:
 				r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if self.active_agents[idx] else 0 for idx in range(self.n_agents)]) # LAST TEST. ALL AGENTS CAN GET REWARD FOR IDLENESS
+			elif 'idle4allreduced' in self.reward_function:
+				ponderations = np.array([0.1 if self.team_id_of_each_agent[idx] == self.cleaners_team_id else 1.0 for idx in range(self.n_agents)])
+				r_for_discover_new_area = np.array([ponderations[idx]*self.idleness_discounted_per_agent[idx] if self.active_agents[idx] else 0 for idx in range(self.n_agents)]) # LAST TEST. ALL AGENTS CAN GET REWARD FOR IDLENESS, REDUCED
 			else:
 				r_for_discover_new_area = np.array([self.idleness_discounted_per_agent[idx] if idx in explorers_alive else 0 for idx in range(self.n_agents)]) # original
 			
