@@ -1059,7 +1059,7 @@ class MultiAgentCleanupEnvironment:
 		""" Reward functions. Different reward functions depending on the team of the agent. """
 		if dont_calculate_rewards:
 			return {agent_id: 0 for agent_id in range(self.n_agents)}
-		if 'negativedistance' in self.reward_function or 'negativedijkstra' in self.reward_function or 'negativelogdijkstra' in self.reward_function or 'negativeastar' in self.reward_function:
+		if 'negativedistance' in self.reward_function or 'negativedijkstra' in self.reward_function or 'negativelogdijkstra' in self.reward_function or 'negativeastar' in self.reward_function or 'nodistance' in self.reward_function:
 			
 			# EXPLORERS TEAM #
 			explorers_alive = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == self.explorers_team_id and self.active_agents[idx]]
@@ -1090,7 +1090,7 @@ class MultiAgentCleanupEnvironment:
 			
 			# BOTH TEAMS #
 			# If there is known trash, reward trough negative distance to closer trash #
-			if np.any(self.model_trash_map):
+			if np.any(self.model_trash_map) and not 'nodistance' in self.reward_function:
 				# Negative distance to closest trash in each step. Continuous penalization, lower when closer to trash #
 				if 'nopenalexpl' in self.reward_function:
 					r_negative_distance_to_trash = np.array([-self.get_distance_to_closest_known_trash(agent.actual_agent_position) if idx in cleaners_alive else 0 for idx, agent in enumerate(self.fleet.vehicles)]) # ONLY CLEANERS GET PENALIZATION FOR DISTANCE TO TRASH
