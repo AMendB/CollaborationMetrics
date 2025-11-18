@@ -8,14 +8,16 @@ from Algorithms.NRRA import WanderingAgent
 from Algorithms.PSO import ParticleSwarmOptimizationFleet
 from Algorithms.Greedy import OneStepGreedyFleet
 from Algorithms.DRL.ActionMasking.ActionMaskingUtils import ConsensusSafeActionMasking
+from Algorithms.LevyWalks import LevyWalksFleet
 import numpy as np
 from tqdm import trange
 
 algorithms = [
 	# 'WanderingAgent', 
     # 'LawnMower', 
-    'PSO', 
+    # 'PSO', 
     # 'Greedy',
+    'LevyWalks',
 	]
 
 SEED = 3
@@ -92,17 +94,17 @@ for algorithm in algorithms:
     if algorithm == 'LawnMower':
         lawn_mower_rng = np.random.default_rng(seed=100)
         agents = [LawnMowerAgent(world=env.scenario_map, number_of_actions=8, movement_length=movement_length_of_each_agent[i], forward_direction=int(lawn_mower_rng.uniform(0,8)), seed=SEED+i, agent_is_cleaner=env.team_id_of_each_agent[i]==env.cleaners_team_id) for i in range(n_agents)]
-        consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
     elif algorithm == 'WanderingAgent':
         agents = [WanderingAgent(world=env.scenario_map, number_of_actions=8, movement_length=movement_length_of_each_agent[i], seed=SEED+i, agent_is_cleaner=env.team_id_of_each_agent[i]==env.cleaners_team_id) for i in range(n_agents)]
-        consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
     elif algorithm == 'PSO':
         agents = ParticleSwarmOptimizationFleet(env, use_idleness=use_idleness)
-        consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
     elif algorithm == 'Greedy':
         agents = OneStepGreedyFleet(env, use_idleness=use_idleness)
-        consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
-
+    elif algorithm == 'LevyWalks':
+        agents = LevyWalksFleet(env, seed=SEED)
+    
+    consensus_safe_masking_module = ConsensusSafeActionMasking(navigation_map = env.scenario_map, angle_set_of_each_agent=env.angle_set_of_each_agent, movement_length_of_each_agent = env.movement_length_of_each_agent)
+    
     mean_cleaned_percentage = 0
     mse_error_accumulated = 0
     average_reward = [0 for _ in range(env.n_teams)]
@@ -150,6 +152,10 @@ for algorithm in algorithms:
             elif algorithm == 'Greedy':
                 # actions = agents.get_agents_actions()
                 q_values = agents.get_agents_q_values()
+                actions = consensus_safe_masking_module.query_actions(q_values=q_values, agents_positions=env.get_active_agents_positions_dict(), model_trash_map=env.model_trash_map, team_id_of_each_agent=env.team_id_of_each_agent)
+            elif algorithm == 'LevyWalks':
+                actions = agents.get_agents_actions()
+                q_values = {agent_id: np.array([1 if i == actions[agent_id] else 0 for i in range(8)]).astype(float) for agent_id in range(n_agents)}
                 actions = consensus_safe_masking_module.query_actions(q_values=q_values, agents_positions=env.get_active_agents_positions_dict(), model_trash_map=env.model_trash_map, team_id_of_each_agent=env.team_id_of_each_agent)
 
             # t0 = time.time()
