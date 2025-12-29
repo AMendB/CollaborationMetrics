@@ -969,18 +969,19 @@ class MultiAgentCleanupEnvironment:
 				self.render_fig, self.axs = plt.subplots(1, 6, figsize=(17,5))
 			
 			# AXIS 0: Plot the navigation map with trash elements #
-			self.im0 = self.axs[0].imshow(self.state_to_render_first_active_agent[0], cmap = 'cet_linear_bgy_10_95_c74')
+			self.state_to_render_first_active_agent[0][self.non_water_mask] = np.nan
+			self.im0 = self.axs[0].imshow(self.state_to_render_first_active_agent[0], cmap = 'coolwarm')
 			self.im0_scatter = self.axs[0].scatter(self.trash_positions_yx[:,1], self.trash_positions_yx[:,0], c = 'red', s = 1)
 			self.axs[0].set_title('Navigation map')
 
 			# AXIS 1: Plot the discretized real trash map #
 			self.state_to_render_first_active_agent[1][self.non_water_mask] = np.nan
-			self.im1 = self.axs[1].imshow(self.state_to_render_first_active_agent[1], cmap ='cet_linear_bgyw_20_98_c66')
+			self.im1 = self.axs[1].imshow(self.state_to_render_first_active_agent[1], cmap ='coolwarm')
 			self.axs[1].set_title("Real trash map")
 
 			# AXIS 2: Plot the discretized model trash map #
 			self.state_to_render_first_active_agent[2][self.non_water_mask] = np.nan
-			self.im2 = self.axs[2].imshow(self.state_to_render_first_active_agent[2], cmap ='cet_linear_bgyw_20_98_c66')
+			self.im2 = self.axs[2].imshow(self.state_to_render_first_active_agent[2], cmap ='coolwarm')
 			self.axs[2].set_title("Trash detected (model)")
 
 			if self.colored_agents == True:
@@ -993,7 +994,7 @@ class MultiAgentCleanupEnvironment:
 				# AXIS 4: Redundancy mask #
 				self.state_to_render_first_active_agent[4][self.non_water_mask] = np.nan
 				# self.im4 = self.axs[4].imshow(self.state_to_render_first_active_agent[4], cmap = 'cet_linear_bgy_10_95_c74', vmin = 0.0, vmax = 4.0)
-				self.im4 = self.axs[4].imshow(self.state_to_render_first_active_agent[4], cmap = 'cet_linear_bgy_10_95_c74', vmin = 0.0, vmax = 1.0)
+				self.im4 = self.axs[4].imshow(self.state_to_render_first_active_agent[4], cmap = 'coolwarm', vmin = 0.0, vmax = 1.0)
 				self.axs[4].set_title("Redundancy mask")
 			else:
 				# AXIS 3: Agent 0 position #
@@ -1008,12 +1009,13 @@ class MultiAgentCleanupEnvironment:
 
 				# AXIS 5: Redundancy mask #
 				self.state_to_render_first_active_agent[5][self.non_water_mask] = np.nan
-				self.im5 = self.axs[5].imshow(self.state_to_render_first_active_agent[5], cmap = 'cet_linear_bgy_10_95_c74', vmin = 0.0, vmax = 4.0)
+				self.im5 = self.axs[5].imshow(self.state_to_render_first_active_agent[5], cmap = 'coolwarm', vmin = 0.0, vmax = 4.0)
 				self.axs[5].set_title("Vision mask")
 
 		else:
 			# UPDATE FIG INFO/DATA IN EVERY RENDER CALL #
 			# AXIS 0: Plot the navigation map with trash elements #
+			self.state_to_render_first_active_agent[0][self.non_water_mask] = np.nan
 			self.im0.set_data(self.state_to_render_first_active_agent[0])
 			self.im0_scatter.set_offsets(self.trash_positions_yx[:, [1, 0]]) # update scatter plot of trash
 			# AXIS 1: Plot the trash map #
@@ -1243,7 +1245,7 @@ class MultiAgentCleanupEnvironment:
 			print(f"Distance method {method} not implemented!!")
 			exit()
 
-	def get_distance_to_closest_known_trash(self, position, previous_model=False):
+	def get_distance_to_closest_known_trash(self, position, previous_model=False, all_distances_ponderated=False):
 		""" Returns the distance from the closer known trash to the given position. """
 
 		if previous_model:
@@ -1262,7 +1264,22 @@ class MultiAgentCleanupEnvironment:
 		else:
 			distances_to_trash = np.linalg.norm(trash_positions - position, axis = 1)
 
-		return np.min(distances_to_trash)
+		if all_distances_ponderated:
+			trash_positions_weights = np.array([self.model_trash_map[tuple(trash_pos)] for trash_pos in trash_positions])
+			return np.array(distances_to_trash * trash_positions_weights)
+		else:
+			return np.min(distances_to_trash)
+
+	def get_ponderated_distances_from_cleaners_to_known_trash(self):
+		""" Returns the distances from all cleaners to all known nodes with trash ponderated by the amount of trash in each node. """
+		
+		if np.any(self.model_trash_map):
+			cleaners_distances_to_known_trash = {}
+			for idx, cleaner_pos in enumerate(self.get_active_cleaners_positions().values()):
+				cleaners_distances_to_known_trash[idx] = self.get_distance_to_closest_known_trash(cleaner_pos, all_distances_ponderated=True)
+		else:
+			cleaners_distances_to_known_trash = {idx: np.array([]) for idx in self.get_active_cleaners_positions().keys()}
+		return cleaners_distances_to_known_trash
 	
 	def get_distance_to_position(self, position1, position2, method='euclidean'):
 		""" Returns the distance between two positions. """
@@ -1379,6 +1396,19 @@ class MultiAgentCleanupEnvironment:
 		""" Returns the max number of agents that are in overlapping areas. """
 		
 		return np.max(self.redundancy_mask)
+
+	def get_coverage_overlap_ratio(self):
+		""" Returns the ratio of area that is covered by more than one agent of the same team from the total covered area by that team. """
+
+		coverage_overlap_ratio_by_team = {}
+		for team_id in range(len(self.number_of_agents_by_team)):
+			team_agents_indexes = [idx for idx, agent_team in enumerate(self.team_id_of_each_agent) if agent_team == team_id]
+			team_coverage_mask = np.sum([self.fleet.vehicles[idx].influence_mask.astype(int) for idx in team_agents_indexes], axis=0)
+			overlapped_area = np.sum(team_coverage_mask > 1)
+			total_covered_area = np.sum(team_coverage_mask > 0)
+			coverage_overlap_ratio_by_team[team_id] = overlapped_area / total_covered_area if total_covered_area > 0 else 0.0
+		
+		return coverage_overlap_ratio_by_team
 	
 	def save_environment_configuration(self, path):
 		""" Save the environment configuration in the current directory as a json file"""
@@ -1432,7 +1462,7 @@ if __name__ == '__main__':
 	
 	seed = 24
 	np.random.seed(seed)
-	scenario_map_name = 'acoruna_port' # ypacarai_map_low_res, ypacarai_lake_58x41, acoruna_port, marinapalamos, comb_port, challenging_map, challenging_map_big
+	scenario_map_name = 'comb_port' # ypacarai_map_low_res, ypacarai_lake_58x41, acoruna_port, marinapalamos, comb_port, challenging_map, challenging_map_big
 
 	# Agents info #
 	n_actions_explorers = 8
@@ -1475,7 +1505,7 @@ if __name__ == '__main__':
 							   reward_function = 'negativelogdijkstra',
 							   reward_weights = (1, 20, 2, 10),
 							   dynamic = True,
-							   obstacles = True,
+							   obstacles = False,
 							   show_plot_graphics = True,
 							 )
 	
