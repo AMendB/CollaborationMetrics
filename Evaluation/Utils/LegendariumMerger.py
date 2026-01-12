@@ -60,7 +60,7 @@ def legendarium_merge(parent_folder, experiment_folder, output_name):
     output_name : str
         The name for the merged experiment output
     """
-    paths_to_merge = [os.path.join(parent_folder, d, experiment_folder) for d in os.listdir(parent_folder) if os.path.isdir(os.path.join(parent_folder, d))]
+    paths_to_merge = [os.path.join(parent_folder, d) for d in os.listdir(parent_folder) if os.path.isdir(os.path.join(parent_folder, d))]
     
     # Empty dataframe to hold all data
     all_data = pd.DataFrame()
@@ -75,9 +75,9 @@ def legendarium_merge(parent_folder, experiment_folder, output_name):
     print(f'Merged and saved to {output_name}')
 
 if __name__ == "__main__":
-    parent_folder = 'Evaluation/Results/'
-    experiment_folder = 'comb_port.4.timenegativelogdijkstra_2.30086970665265_2.1921767314965317_1.8604886309628847_4.098596840990528'
-    output_name = f'Evaluation/Results/epsilontestmerged_{experiment_folder}'
+    parent_folder = 'Evaluation/Results/EPSILON_TEST_comb_port.4.timenegativelogdijkstra_2.30..._/0_0.5_1_Tm1'
+    experiment_folder = 'comb_port.4.timenegativelogdijkstra_2.30_2.19_1.86_4.10'
+    output_name = f'{parent_folder}/EpsmergedTm1_{experiment_folder}'
     legendarium_merge(parent_folder, experiment_folder, output_name)
     sys.exit(0)
 
