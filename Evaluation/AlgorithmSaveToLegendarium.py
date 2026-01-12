@@ -11,8 +11,6 @@ from datetime import datetime
 from itertools import product
 
 from Environment.CleanupEnvironment import MultiAgentCleanupEnvironment
-from Evaluation.Utils.metrics_wrapper import MetricsDataCreator
-
 from sylegendarium.legendarium import Legendarium
 import numbers
 import copy
