@@ -5,30 +5,30 @@ import numpy as np
 import heapq
 
 def heuristic(a, b):
-    """Función heurística: Distancia de Manhattan"""
+    """Heuristic function: Manhattan Distance"""
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 def a_star_find_path(mapa, start, goal, return_distance=False):
-    """Algoritmo A* para encontrar el camino más corto en un mapa."""
-    # Direcciones posibles: arriba, abajo, izquierda, derecha
-    vecinos = [(0, 1), (1, 0), (0, -1), (-1, 0),
+    """A* algorithm to find the shortest path on a map."""
+    # Possible directions: up, down, left, right and diagonals
+    neighbors = [(0, 1), (1, 0), (0, -1), (-1, 0),
                (1, 1), (1, -1), (-1, 1), (-1, -1)]
     
-    # Inicializar la cola de prioridad con el nodo de inicio
+    # Initialize the priority queue with the start node
     open_set = []
     heapq.heappush(open_set, (0, start))
     
-    # Diccionario para almacenar el costo acumulado desde el inicio
+    # Dictionary to store the accumulated cost from the start node
     g_score = {start: 0}
     
-    # Diccionario para almacenar el camino
+    # Dictionary to store the path
     came_from = {}
     
     while open_set:
-        # Sacar el nodo con el menor costo estimado
+        # Pop the node with the lowest estimated cost
         current = heapq.heappop(open_set)[1]
         
-        # Si llegamos al objetivo, reconstruir el camino y devolver la distancia
+        # If we reached the goal, reconstruct the path and return the distance
         if current == goal:
             path = []
             while current in came_from:
@@ -37,33 +37,33 @@ def a_star_find_path(mapa, start, goal, return_distance=False):
             path.append(start)
             path.reverse()
             if return_distance:
-                return len(path) - 1  # La distancia es el número de pasos
+                return len(path) - 1  # The distance is the number of steps
             else:
                 return path
         
-        # Explorar los vecinos
-        for dx, dy in vecinos:
+        # Explore neighbors
+        for dx, dy in neighbors:
             neighbor = (current[0] + dx, current[1] + dy)
             
-            # Verificar si el vecino está dentro del mapa y es navegable
+            # Check if the neighbor is within the map and navigable
             if (0 <= neighbor[0] < mapa.shape[0] and 
                 0 <= neighbor[1] < mapa.shape[1] and 
                 mapa[neighbor[0], neighbor[1]] == 1):
                 
-                # Calcular el costo acumulado hasta el vecino
+                # Calculate the accumulated cost to the neighbor
                 tentative_g_score = g_score[current] + 1
                 
-                # Si el vecino no ha sido visitado o encontramos un camino mejor
+                # If the neighbor has not been visited or we found a better path
                 if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g_score
                     f_score = tentative_g_score + heuristic(neighbor, goal)
                     heapq.heappush(open_set, (f_score, neighbor))
     
-    # Si no se encuentra un camino, devolver -1
+    # If no path is found, return -1
     return -1
 
-# Ejemplo de uso
+# Example usage
 mapa = np.array([
     [1, 1, 1, 1, 0],
     [1, 0, 1, 1, 1],
@@ -77,12 +77,12 @@ if __name__ == '__main__':
     start = (10, 10)
     goal = (62, 13)
 
-    distancia = a_star_find_path(scenario_map, start, goal, return_distance=True)
-    print(f"Distancia entre {start} y {goal}: {distancia}")
+    distance = a_star_find_path(scenario_map, start, goal, return_distance=True)
+    print(f"Distance between {start} and {goal}: {distance}")
 
     path = a_star_find_path(scenario_map, start, goal)
 
-    # Visualizar el mapa y el camino encontrado
+    # Visualize the map and the found path
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 10))
     plt.imshow(scenario_map, cmap='binary')
