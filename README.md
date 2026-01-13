@@ -52,7 +52,7 @@ Includes:
 - Inter-team metrics (Dicovery-to-service Latency, Inter-team Temporal Lag, Cooperative Success Ratio, Cooperation Sensitivity under Stochastic Corruption...).
 - Intra-team metrics (Gini Coefficient, Coverage Overlap, Marginal Contribution...).
 
-### Typical Workflow
+## Typical Workflow
 1. Configure and run an algorithm in the `CleanupEnvironment.py`.
 2. Save execution data using `AlgorithmSaveToLegendarium.py`.
 3. Analyze results and compute metrics using `AlgorithmAnalyzerLegendarium.py`.
